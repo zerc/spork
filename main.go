@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/md5"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -23,6 +24,26 @@ var hostname string = "http://localhost:8000" // TODO: env variable
 type ShortURL struct {
 	Original string
 	Hash     string
+}
+
+func (s *ShortURL) All() *[]ShortURL {
+	rows, err := db.Query("SELECT original, hash FROM urls")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer rows.Close()
+	var result []ShortURL
+
+	for rows.Next() {
+		a := ShortURL{}
+		if err := rows.Scan(&a.Original, &a.Hash); err != nil {
+			log.Fatal(err)
+		}
+		result = append(result, a)
+	}
+
+	return &result
 }
 
 func (s *ShortURL) Get() {
@@ -96,6 +117,9 @@ func main() {
 	fmt.Println("Server started")
 	http.HandleFunc("/api/urls/", ShortURLHandler)
 	http.HandleFunc("/s/", RedirectHandler)
+	http.HandleFunc("/shortener/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "templates/shortener.html")
+	})
 	log.Fatal(http.ListenAndServe("0.0.0.0:8080", nil))
 }
 
@@ -105,24 +129,35 @@ func ShortURLHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
+	if r.Method == http.MethodPost {
+		url := r.FormValue("url")
+
+		if url == "" {
+			io.WriteString(w, `"url" parameter is missing!`)
+			w.WriteHeader(http.StatusBadRequest)
+		} else {
+			shortURL := ShortURL{Original: url}
+			shortURL.Save()
+			io.WriteString(w, shortURL.GetShortURL())
+			w.WriteHeader(http.StatusOK)
+		}
+
 		return
 	}
 
-	url := r.FormValue("url")
-
-	if url != "" {
-		shortURL := ShortURL{Original: url}
-		shortURL.Save()
-		io.WriteString(w, shortURL.GetShortURL())
-	} else {
-		io.WriteString(w, `"url" parameter is missing!`)
-		w.WriteHeader(http.StatusBadRequest)
+	if r.Method == http.MethodGet {
+		rows := ShortURL{}
+		b, err := json.Marshal(rows.All())
+		if err != nil {
+			log.Fatal(err)
+		}
+		w.Write(b)
+		w.Header().Add("Content-Type", "application/json") // TODO: set by default
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusMethodNotAllowed)
 }
 
 func RedirectHandler(w http.ResponseWriter, r *http.Request) {

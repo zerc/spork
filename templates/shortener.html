@@ -1,0 +1,25 @@
+<head>
+  <title>URL Shortener</title>
+  <script
+    src="https://code.jquery.com/jquery-3.2.1.min.js"
+    integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+    crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="container"></div>
+
+  <script>
+    $(function () {
+      var $container = $('#container');
+      $.getJSON('/api/urls/', function (data) {
+        var rows = [];
+        $.each(data, function (i, row) {
+          rows.push('<li>Original: '+row.Original+' Hash: '+row.Hash+'</li>');
+        });
+
+        $( "<ol/>", {"class": "my-new-list", html: rows.join('')}).appendTo($container);
+      });
+    });
+  </script>
+</body>
+
