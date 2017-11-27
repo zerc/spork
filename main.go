@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	_ "github.com/lib/pq"
@@ -19,12 +20,8 @@ import (
 
 var db *sql.DB
 
-var hostname string = "http://localhost:8000" // TODO: env variable
+var hostname string = os.Getenv("SPORK_HOST")
 
-type ShortURL struct {
-	Original string
-	Hash     string
-}
 
 func (s *ShortURL) All() *[]ShortURL {
 	rows, err := db.Query("SELECT original, hash FROM urls")

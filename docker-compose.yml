@@ -8,6 +8,8 @@ services:
      - .:/main
     depends_on:
      - db
+    environment:
+      SPORK_HOST: "http://localhost:8000"
   db:
     image: "postgres:10"
     ports:
